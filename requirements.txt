@@ -1,0 +1,9 @@
+scikit-learn
+numpy
+pandas
+ollama
+langchain
+openai
+langchain_ollama
+langchain_core
+black
