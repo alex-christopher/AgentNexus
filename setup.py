@@ -8,7 +8,8 @@ setup(
     install_requires=[
         "requests",
         "fastapi",
-        "uvicorn"
+        "uvicorn",
+        "openai"
     ],
     entry_points={
         "console_scripts": [
