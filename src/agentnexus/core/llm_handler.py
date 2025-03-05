@@ -2,17 +2,19 @@ import requests
 import json
 import openai
 
-from agentnexus.prompts.developer_prompt import DEVELOPER_PROMPT
+from agentnexus.core.config_manager import ConfigManager
 
 class LLMHandler:
     '''Handler for LLM APIs and supporting dynamic responses'''
 
-    def __init__(self, api_key: str, endpoint: str, model_name: str):
-        self.api_key = api_key
-        self.endpoint = endpoint
-        self.model_name = model_name
-
-    def generate_code(self, prompt: str) -> str:
+    def __init__(self):
+        config = ConfigManager.get_config()
+        self.api_key = config["api_key"]
+        self.endpoint = config["endpoint"]
+        self.model_name = config["model_name"]
+        self.temperature = config["temperature"]
+        
+    def generate_code(self, system_prompt:str, prompt: str) -> str:
         '''Generate code using the LLM API'''
 
         try:
@@ -24,9 +26,9 @@ class LLMHandler:
             response = client.chat.completions.create(
                 model=self.model_name,
                 messages=[
-                    {"role": "system", "content": DEVELOPER_PROMPT},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}],
-                temperature=0.7
+                temperature=self.temperature
             )
             return response.choices[0].message.content
 
@@ -34,5 +36,3 @@ class LLMHandler:
             raise Exception("Authentication failed check your API key")
         except openai.APIError as e:
             raise Exception('OpenAI API Error')
-
-    

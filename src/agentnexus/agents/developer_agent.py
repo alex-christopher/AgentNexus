@@ -11,42 +11,48 @@ import isort
 from agentnexus.agents.base_agent import BaseAgent
 from agentnexus.core.llm_handler import LLMHandler
 from agentnexus.storage.file_manager import FileManager
+from agentnexus.prompts.developer_prompt import DEVELOPER_PROMPT
+
 
 class DeveloperAgent(BaseAgent):
     '''Agent that uses LLM to generate and validate code'''
 
-    def __init__(self, api_key: str, endpoint: str, model_name: str):
+    def __init__(self):
         super().__init__("DeveloperAgent")
-        self.llm_handler = LLMHandler(api_key, endpoint, model_name)
+        self.llm_handler = LLMHandler()
         self.file_manager = FileManager()
 
-    def run(self, task: str) -> dict:
-        '''Runs the agent to generate, validate, and execute code'''
-        generated_code = self.llm_handler.generate_code(task)
-        clean_code = self._clean_code(generated_code)
-        formatted_code = self._format_code(clean_code)
-        validation_result = self._validate_code(formatted_code)
-        execution_result = None
+    @classmethod
+    def build(cls, task: str) -> dict:
+        instance = cls()
+        return instance._build_code(task)
+    
+    @classmethod
+    def execute_code(cls, code: str) -> dict:
+        instance = cls()
+        return instance._execute_python_code(code)
 
-        if validation_result["is_valid"]:
-            execution_result = self._execute_code(clean_code)
+    def _build_code(self, task: str) -> dict:
+        '''Runs the agent to generate, validate, and execute code'''
+        generated_code = self.llm_handler.generate_code(DEVELOPER_PROMPT, task)
+        clean_code = self._clean_python_code(generated_code)
+        formatted_code = self._format_python_code(clean_code)
+        validation = self._validate_python_code(formatted_code)
 
         return {
             "task": task,
-            "generated_code": clean_code,
-            "validation_result": validation_result,
-            "execution_result": execution_result,
-            "formatted_code": formatted_code
+            "generated_code": formatted_code,
+            "validation" : validation
         }
     
-    def _clean_code(self, code:str) -> str:
+    def _clean_python_code(self, code:str) -> str:
         code = code.strip()
         code = re.sub(r"^```[a-zA-Z]*\n", "", code)
         code = re.sub(r"```$", "", code)
 
         return code.strip()
     
-    def _format_code(self, code: str) -> str:
+    def _format_python_code(self, code: str) -> str:
         try:
             formatted_code = black.format_str(code, mode=black.FileMode())
             formatted_code = isort.code(formatted_code)
@@ -54,7 +60,7 @@ class DeveloperAgent(BaseAgent):
         except Exception as e:
             return code
             
-    def _validate_code(self, code: str) -> dict:
+    def _validate_python_code(self, code: str) -> dict:
         """Validates the generated code using syntax checking and flake8 linting."""
         temp_file_path = None  
 
@@ -81,7 +87,7 @@ class DeveloperAgent(BaseAgent):
             if temp_file_path and os.path.exists(temp_file_path):
                 os.remove(temp_file_path)
 
-    def _execute_code(self, code: str) -> dict:
+    def _execute_python_code(self, code: str) -> dict:
         """Executes generated code in a safe environment."""
         temp_script_path = None  
 
@@ -92,6 +98,16 @@ class DeveloperAgent(BaseAgent):
 
             result = subprocess.run(["python", temp_script_path], capture_output=True, text=True)
             output = result.stdout.strip() if result.stdout else result.stderr.strip()
+
+            if "ModuleNotFoundError" in output:
+                missing_module = re.search(r"ModuleNotFoundError: No module named '(.+)'", output)
+                if missing_module:
+                    module_name = missing_module.group(1)
+                    return {
+                        "execution_success": False,
+                        "error": f"Missing module: '{module_name}'. Please install it using:\n"
+                                f"   pip install {module_name}"
+                    }
 
             return {
                 "execution_success": result.returncode == 0,
