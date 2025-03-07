@@ -3,6 +3,7 @@ import json
 import openai
 
 from agentnexus.core.config_manager import ConfigManager
+from agentnexus.core.logger_manager import LoggerManager
 
 class LLMHandler:
     '''Handler for LLM APIs and supporting dynamic responses'''
@@ -13,6 +14,7 @@ class LLMHandler:
         self.endpoint = config["endpoint"]
         self.model_name = config["model_name"]
         self.temperature = config["temperature"]
+        self.logger = LoggerManager.get_logger("LLMHandler")
         
     def generate_code(self, system_prompt:str, prompt: str) -> str:
         '''Generate code using the LLM API'''
@@ -30,9 +32,12 @@ class LLMHandler:
                     {"role": "user", "content": prompt}],
                 temperature=self.temperature
             )
-            return response.choices[0].message.content
 
-        except openai.APIConnectionError:
-            raise Exception("Authentication failed check your API key")
+            result = response.choices[0].message.content
+            self.logger.info("Code generated successfully")
+            return result
+
+        except openai.APIConnectionError as e:
+            raise Exception("API Connection Error: {e}")
         except openai.APIError as e:
-            raise Exception('OpenAI API Error')
+            raise Exception('OpenAI API Error : {e}')
