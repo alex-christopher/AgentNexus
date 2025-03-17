@@ -10,45 +10,66 @@ from agentnexus.prompts.developer_prompt import DEVELOPER_PROMPT
 class DeveloperAgent(BaseAgent):
     """Agent that uses LLM to generate, validate, and execute code."""
 
+    _instance = None  # Singleton instance
+
     def __init__(self):
         super().__init__("DeveloperAgent")
         self.llm_handler = LLMHandler()
         self.execution_engine = ExecutionEngine()
 
-    def execute(self, task: str) -> dict:
-        """Runs the agent to generate, validate, and execute code."""
-        self.logger.info(f"Starting task: {task}")
-        try:
-            result = self._build(task)
-            self.logger.info(f"Task completed successfully: {task}")
-            return result
-        except Exception as e:
-            self.logger.error(f"Error in DeveloperAgent execution: {e}", exc_info=True)
-            return {"error": str(e)}
+    @classmethod
+    def get_instance(cls):
+        """Get or create a singleton instance of DeveloperAgent."""
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
 
     @classmethod
     def build(cls, task: str) -> dict:
-        instance = cls()
-        return instance._build(task)
+        """Use an instance to build code instead of creating a new one each time."""
+        return cls.get_instance()._build(task)
 
     @classmethod
     def execute_code(cls, code: str) -> dict:
-        instance = cls()
-        return instance._execute_code(code)
+        """Use the same instance to execute code."""
+        return cls.get_instance()._execute_code(code)
+
+    def execute(self, task: str) -> dict:
+        """Implements the abstract method from BaseAgent."""
+        return self._build(task)
 
     def _build(self, task: str) -> dict:
         """Runs the agent to generate, validate, and execute code."""
-        self.logger.debug(f"Generating code for task: {task}")
-        generated_code = self.llm_handler.generate_code(DEVELOPER_PROMPT, task)
-        clean_code = self._clean_python_code(generated_code)
-        formatted_code = self._format_python_code(clean_code)
-        validation = CodeValidator.validate_python(formatted_code)
+        self.logger.info(f"Generating code for task: {task}")
+        
+        try:
+            generated_code = self.llm_handler.generate_code(DEVELOPER_PROMPT, task)
+            clean_code = self._clean_python_code(generated_code)
+            formatted_code = self._format_python_code(clean_code)
+            validation = CodeValidator.validate_python(formatted_code)
 
-        return {
-            "task": task,
-            "generated_code": formatted_code,
-            "validation": validation
-        }
+            output = {
+                "status": "success",
+                "result" : {
+                    "task": task,
+                    "generated_code": formatted_code,
+                    "validation": validation
+                }
+            }
+
+            if not self.validate_output(output):
+                return {"status": "error", 
+                        "result": {
+                            "task": task, 
+                            "error": "Output validation failed."
+                    }
+                }
+            self.log_task(task, output)
+            return output
+
+        except Exception as e:
+            self.logger.error(f"Error in DeveloperAgent execution: {e}", exc_info=True)
+            return {"status": "error", "result": str(e)}
 
     @staticmethod
     def _clean_python_code(code: str) -> str:
@@ -65,10 +86,9 @@ class DeveloperAgent(BaseAgent):
             formatted_code = black.format_str(code, mode=black.FileMode())
             formatted_code = isort.code(formatted_code)
             return formatted_code
-        except Exception as e:
-            return code  # Return original if formatting fails
+        except Exception:
+            return code  
 
     def _execute_code(self, code: str) -> dict:
         """Executes the Python code using the framework's execution engine."""
-        result = self.execution_engine.execute_python(code)
-        return result
+        return self.execution_engine.execute_python(code)
