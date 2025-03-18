@@ -35,7 +35,7 @@ class CodeValidator:
             }
     
         except SyntaxError as e:
-            self.logger.error(f"Syntax Error: {e}", exc_info=True)
+            CodeValidator.logger.error(f"Syntax Error: {e}", exc_info=True)
             return {
                 "is_valid": False,
                 "linter_errors": f"Syntax Error: {str(e)}"

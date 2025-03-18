@@ -10,7 +10,7 @@ from agentnexus.prompts.developer_prompt import DEVELOPER_PROMPT
 class DeveloperAgent(BaseAgent):
     """Agent that uses LLM to generate, validate, and execute code."""
 
-    _instance = None  # Singleton instance
+    _instance = None  
 
     def __init__(self):
         super().__init__("DeveloperAgent")
