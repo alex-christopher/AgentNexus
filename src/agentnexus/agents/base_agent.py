@@ -14,7 +14,7 @@ class BaseAgent(ABC):
 
 
     @abstractmethod
-    def execute(self, task: str) -> dict:
+    def execute(self, task:str) -> dict:
         """Each agent must implement its own execution logic."""
         pass
 

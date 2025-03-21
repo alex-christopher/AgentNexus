@@ -1,6 +1,7 @@
 import re
 import black
 import isort
+import json
 from agentnexus.agents.base_agent import BaseAgent
 from agentnexus.core.llm_handler import LLMHandler
 from agentnexus.core.validation import CodeValidator
@@ -43,29 +44,37 @@ class DeveloperAgent(BaseAgent):
         self.logger.info(f"Generating code for task: {task}")
         
         try:
-            generated_code = self.llm_handler.generate_code(DEVELOPER_PROMPT, task)
-            clean_code = self._clean_python_code(generated_code)
-            formatted_code = self._format_python_code(clean_code)
-            validation = CodeValidator.validate_python(formatted_code)
+            generated_code = self.llm_handler.generate(DEVELOPER_PROMPT, task)
+            generated_code = json.loads(generated_code)
+            if isinstance (generated_code, dict):
+                if generated_code.get("content_type") == "code":
+                    clean_code = self._clean_python_code(generated_code.get("response"))
+                    formatted_code = self._format_python_code(clean_code)
+                    validation = CodeValidator.validate_python(formatted_code)
 
-            output = {
-                "status": "success",
-                "result" : {
-                    "task": task,
-                    "generated_code": formatted_code,
-                    "validation": validation
-                }
-            }
-
-            if not self.validate_output(output):
-                return {"status": "error", 
-                        "result": {
-                            "task": task, 
-                            "error": "Output validation failed."
+                    output = {
+                        "status": "success",
+                        "result" : {
+                            "task": task,
+                            "generated_code": formatted_code,
+                            "validation": validation
+                        }
                     }
-                }
-            self.log_task(task, output)
-            return output
+
+                    if not self.validate_output(output):
+                        return {"status": "error", 
+                                "result": {
+                                    "task": task, 
+                                    "error": "Output validation failed."
+                            }
+                        }
+                    self.log_task(task, output)
+                    return output
+        
+                else:
+                    self.logger.error("The generated content is not a code block")
+            else:
+                self.logger.error("The generated LLM output is not in the required format")
 
         except Exception as e:
             self.logger.error(f"Error in DeveloperAgent execution: {e}", exc_info=True)
@@ -92,3 +101,5 @@ class DeveloperAgent(BaseAgent):
     def _execute_code(self, code: str) -> dict:
         """Executes the Python code using the framework's execution engine."""
         return self.execution_engine.execute_python(code)
+
+

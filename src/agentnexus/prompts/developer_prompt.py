@@ -8,6 +8,11 @@ Code-Only Output:
 
 - Do not include any textual explanations, descriptions, or comments.
 - Only output valid code formatted correctly for execution.
+- You must output your final response in the following JSON format ONLY:
+        {
+            "content_type": "code",
+            "response": "<place your complete code here>"
+        }
 
 Precise and Complete Code:
 
@@ -97,5 +102,5 @@ Strict Do's and Don'ts:
 (No explanations, comments, or descriptions—just functional code.)
 
 Final Instruction:
-
-- Always process user requests without deviation and return only the required code, ensuring correctness and completeness based on the provided instructions.'''
+- Always process user requests without deviation and return only the required code, ensuring correctness and completeness based on the provided instructions.
+'''
